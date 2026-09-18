@@ -1,0 +1,3360 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Bleacher Speaker</title>
+
+    <style>
+        #player-list tr {
+            cursor: grab;
+        }
+
+            #player-list tr:active {
+                cursor: grabbing;
+            }
+
+            #player-list tr.dragging {
+                opacity: 0.4;
+            }
+
+            #player-list tr.drag-over {
+                border-top: 3px solid #2196f3;
+            }
+
+        .order-button {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            margin: 0 4px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .order-left {
+            text-align: center;
+        }
+
+        .order-right {
+            text-align: center;
+        }
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #111;
+            color: #fff;
+        }
+
+        .app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 25px;
+        }
+
+        h1 {
+            margin: 0 0 25px;
+            font-size: 30px;
+        }
+
+        .panel {
+            background: #1c1c1c;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #292929;
+            color: white;
+            font-size: 15px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+            button:hover {
+                opacity: .85;
+            }
+
+            button:disabled {
+                opacity: .5;
+                cursor: not-allowed;
+            }
+
+        .primary {
+            background: #1683ff;
+            color: white;
+        }
+
+        .green {
+            background: #20a464;
+            color: white;
+        }
+
+        .red {
+            background: #d33;
+            color: white;
+        }
+
+        .gray {
+            background: #444;
+            color: white;
+        }
+
+        .yellow {
+            background: #c99a00;
+            color: white;
+        }
+
+        .youtube-search {
+            display: flex;
+            gap: 10px;
+        }
+
+            .youtube-search input {
+                flex: 1;
+            }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #252525;
+        }
+
+        .player-row {
+            cursor: pointer;
+        }
+
+            .player-row:hover {
+                background: #222;
+            }
+
+            .player-row.selected {
+                background: #17395a;
+            }
+
+        .actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .empty {
+            text-align: center;
+            color: #888;
+            padding: 30px;
+        }
+
+        .player-panel {
+            position: relative;
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * youtube-player is now a real DOM container.
+         * The YouTube IFrame API creates the iframe inside this
+         * container after the DOM is ready.
+         */
+        #youtube-player {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 16 / 9;
+            margin: 0 auto;
+            background: #000;
+            overflow: hidden;
+        }
+
+            #youtube-player iframe {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                border: 0;
+            }
+
+        .player-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+            background: #000;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .player-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .now-playing {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .progress-container {
+            max-width: 640px;
+            margin: 15px auto 0;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #1683ff;
+            transition: width .1s linear;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .status {
+            text-align: center;
+            min-height: 20px;
+            margin-top: 10px;
+            color: #aaa;
+        }
+
+        .video-url {
+            color: #777;
+            font-size: 12px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 700px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th,
+            td {
+                padding: 9px 6px;
+            }
+
+            .youtube-search {
+                flex-direction: column;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app">
+
+        <img src="logo.png" alt="Player Song Manager" style="width: 180px; height: auto;">
+        <div class="import-export">
+            <button type="button" class="gray" onclick="exportPlayers()">
+                EXPORT
+            </button>
+
+            <button type="button" class="gray" onclick="importPlayers()">
+                IMPORT
+            </button>
+
+            <input type="file"
+                   id="import-file"
+                   accept=".json,application/json"
+                   style="display:none;"
+                   onchange="handleImportFile(event)">
+        </div>
+        <!-- PLAYER CREATION -->
+        <div class="panel">
+
+            <h2 id="form-title">Add Player</h2>
+
+            <div class="form-grid">
+
+                <label for="player-number">Number</label>
+
+                <input id="player-number"
+                       type="text"
+                       placeholder="Player number">
+
+
+                <label for="player-name">Player</label>
+
+                <input id="player-name"
+                       type="text"
+                       placeholder="Player name">
+
+
+                <label for="youtube-search">Find Song</label>
+
+                <div class="youtube-search">
+
+                    <input id="youtube-search"
+                           type="text"
+                           placeholder="Search YouTube for a song">
+
+                    <button class="red"
+                            type="button"
+                            onclick="searchYouTube()">
+                        Search YouTube
+                    </button>
+
+                </div>
+
+
+                <label for="youtube-url">YouTube URL</label>
+
+                <input id="youtube-url"
+                       type="text"
+                       placeholder="Paste selected YouTube video URL">
+
+
+                <label for="start-time">Start Time</label>
+
+                <input id="start-time"
+                       type="text"
+                       placeholder="0:42, 42, 1m42s, or 1:02:15">
+
+            </div>
+
+
+            <div style="margin-top:20px; display:flex; gap:10px;">
+
+                <button id="save-player-button"
+                        class="primary"
+                        type="button"
+                        onclick="savePlayer()">
+                    Save Player
+                </button>
+
+                <button class="gray"
+                        type="button"
+                        onclick="clearForm()">
+                    Clear
+                </button>
+
+            </div>
+
+
+            <div id="form-status" class="status"></div>
+
+        </div>
+
+
+        <!-- PLAYER LIST -->
+        <div class="panel">
+
+            <h2>Players</h2>
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Player</th>
+                            <th>Song</th>
+                            <th>Start</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="player-list"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+        <!-- YOUTUBE PLAYBACK -->
+        <div class="panel player-panel">
+
+            <div class="progress-container">
+                <div id="now-playing"
+                     class="now-playing">
+                    No player selected
+                </div>
+                <div class="progress-bar">
+
+                    <div id="progress-fill"
+                         class="progress-fill"></div>
+
+                </div>
+
+
+                <div class="time-display">
+
+                    <span id="elapsed">
+                        00:00
+                    </span>
+
+                    <span id="duration">
+                        00:15
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="player-controls">
+
+                <button id="play-button"
+                        class="green"
+                        type="button"
+                        onclick="playSelected()"
+                        disabled>
+                    ▶ PLAY
+                </button>
+
+
+                <button id="fade-button"
+                        class="yellow"
+                        type="button"
+                        onclick="fadeToStop()"
+                        disabled>
+                    FADE TO STOP
+                </button>
+
+
+                <button id="stop-button"
+                        class="gray"
+                        type="button"
+                        onclick="stopPlayback()"
+                        disabled>
+                    ■ STOP
+                </button>
+
+            </div>
+
+
+            <div id="playback-status"
+                 class="status">
+                Waiting for YouTube API...
+            </div>
+
+           
+
+
+            <!--
+        The YouTube IFrame API will create the actual iframe
+        inside this DOM element.
+
+        DO NOT put a manually-created iframe here.
+    -->
+            <div id="youtube-player" style="display:flex; justify-content:center; width:300px;">
+
+                <div id="player-placeholder"
+                     class="player-placeholder">
+                    Initializing YouTube player...
+                </div>
+
+            </div>
+
+
+
+
+        </div>
+
+    </div>
+
+
+    <script>
+        "use strict";
+
+        /*
+        * ================================================================
+        * GLOBAL STATE
+        * ================================================================
+        */
+
+        let players = [];
+
+        let selectedPlayerId = null;
+
+        let editingPlayerId = null;
+
+        let youtubePlayer = null;
+
+        let youtubeReady = false;
+
+        let youtubeApiLoaded = false;
+
+        let playbackTimer = null;
+
+        let fadeTimer = null;
+
+        let playbackStartTime = 0;
+
+        const playbackDuration = 15;
+
+
+        /*
+        * ================================================================
+        * DOM READY
+        *
+        * EVERYTHING that accesses DOM elements happens after this.
+        * This prevents the "player is still loading" race caused by
+        * trying to create/access the YouTube player before the DOM
+        * exists.
+        * ================================================================
+        */
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+        /*
+        * Load saved data.
+        */
+
+        try {
+
+        players = JSON.parse(
+        localStorage.getItem("players") || "[]"
+        );
+
+        if (!Array.isArray(players)) {
+        players = [];
+        }
+
+        } catch (error) {
+
+        console.error(
+        "Could not load players:",
+        error
+        );
+
+        players = [];
+        }
+
+
+        /*
+        * Render the application first.
+        *
+        * This guarantees #youtube-player exists before the
+        * YouTube IFrame API is loaded/initialized.
+        */
+
+        renderPlayers();
+
+        resetProgress();
+
+
+        /*
+        * NOW load the official YouTube IFrame API.
+        */
+
+        loadYouTubeAPI();
+
+        });
+
+
+        /*
+        * ================================================================
+        * LOAD YOUTUBE API
+        * ================================================================
+        */
+
+        function loadYouTubeAPI() {
+
+        /*
+        * The callback MUST exist before the script is inserted.
+        *
+        * This avoids a race where the API finishes loading before
+        * the callback has been registered.
+        */
+
+        window.onYouTubeIframeAPIReady =
+        onYouTubeIframeAPIReady;
+
+
+        /*
+        * If the API is already available, initialize immediately.
+        */
+
+        if (
+        window.YT &&
+        window.YT.Player
+        ) {
+
+        onYouTubeIframeAPIReady();
+
+        return;
+        }
+
+
+        /*
+        * Prevent loading the script twice.
+        */
+
+        const existingScript =
+        document.querySelector(
+        'script[src="https://www.youtube.com/iframe_api"]'
+        );
+
+
+        if (existingScript) {
+
+        setStatus(
+        "playback-status",
+        "Loading YouTube API..."
+        );
+
+        return;
+        }
+
+
+        const script =
+        document.createElement("script");
+
+
+        script.src =
+        "https://www.youtube.com/iframe_api";
+
+        script.async = true;
+
+
+        script.onload = function () {
+
+        youtubeApiLoaded = true;
+
+        setStatus(
+        "playback-status",
+        "YouTube API loaded. Initializing player..."
+        );
+
+        /*
+        * Normally the official API invokes
+        * onYouTubeIframeAPIReady itself.
+        *
+        * This fallback handles environments where the script
+        * load event fires but the callback has not yet executed.
+        */
+
+        waitForYouTubeAPI();
+        };
+
+
+        script.onerror = function () {
+
+        setStatus(
+        "playback-status",
+        "Could not load the YouTube API. Check your internet connection."
+        );
+        };
+
+
+        document.head.appendChild(script);
+        }
+
+
+        /*
+        * ================================================================
+        * WAIT FOR YOUTUBE API
+        * ================================================================
+        */
+
+        function waitForYouTubeAPI() {
+
+        let attempts = 0;
+
+        const maxAttempts = 100;
+
+        const timer =
+        setInterval(function () {
+
+        attempts++;
+
+
+        if (
+        window.YT &&
+        window.YT.Player
+        ) {
+
+        clearInterval(timer);
+
+        onYouTubeIframeAPIReady();
+
+        return;
+        }
+
+
+        if (attempts >= maxAttempts) {
+
+        clearInterval(timer);
+
+        setStatus(
+        "playback-status",
+        "YouTube player could not be initialized."
+        );
+        }
+
+        }, 100);
+        }
+
+
+        /*
+        * ================================================================
+        * OFFICIAL YOUTUBE API CALLBACK
+        * ================================================================
+        */
+
+        function onYouTubeIframeAPIReady() {
+
+        /*
+        * Protect against the callback being invoked more than once.
+        */
+
+        if (youtubePlayer) {
+        return;
+        }
+
+
+        /*
+        * DOM MUST exist.
+        */
+
+        const container =
+        document.getElementById(
+        "youtube-player"
+        );
+
+
+        if (!container) {
+
+        /*
+        * If somehow the DOM is not ready yet, wait until it is.
+        */
+
+        if (
+        document.readyState !==
+        "complete"
+        ) {
+
+        window.addEventListener(
+        "load",
+        onYouTubeIframeAPIReady,
+        { once: true }
+        );
+
+        }
+
+        return;
+        }
+
+
+        /*
+        * Remove placeholder before YouTube creates the iframe.
+        */
+
+        const placeholder =
+        document.getElementById(
+        "player-placeholder"
+        );
+
+
+        if (placeholder) {
+        placeholder.remove();
+        }
+
+
+        /*
+        * Create the actual YouTube player.
+        *
+        * This is the official YouTube IFrame Player API.
+        */
+
+        youtubePlayer =
+        new YT.Player(
+        "youtube-player",
+        {
+
+        width: "100%",
+
+        height: "100%",
+
+        videoId: "",
+
+        playerVars: {
+
+        /*
+        * Do not autoplay on page load.
+        */
+
+        autoplay: 0,
+
+        /*
+        * Display YouTube controls.
+        */
+
+        controls: 1,
+
+        /*
+        * Keep related videos limited.
+        */
+
+        rel: 0,
+
+        /*
+        * Needed for inline playback on mobile.
+        */
+
+        playsinline: 1,
+
+        /*
+        * Enable JavaScript API.
+        */
+
+        enablejsapi: 1,
+
+        /*
+        * Use the current page as the API origin
+        * when running from HTTP/HTTPS.
+        */
+
+        ...(location.protocol === "http:" ||
+        location.protocol === "https:"
+        ? {
+        origin: location.origin
+        }
+        : {})
+        },
+
+
+        events: {
+
+        onReady:
+        handleYouTubeReady,
+
+        onStateChange:
+        handleYouTubeStateChange,
+
+        onError:
+        handleYouTubeError
+        }
+        }
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * YOUTUBE READY
+        * ================================================================
+        */
+
+        function handleYouTubeReady(event) {
+
+        youtubeReady = true;
+
+
+        /*
+        * Make sure the player starts unmuted and at maximum volume.
+        *
+        * PLAY also performs these calls again because PLAY is a
+        * direct user interaction.
+        */
+
+        try {
+
+        event.target.unMute();
+
+        event.target.setVolume(100);
+
+        } catch (error) {
+
+        console.warn(
+        "Initial YouTube audio setup:",
+        error
+        );
+        }
+
+
+        /*
+        * Enable playback controls now that the actual YT.Player
+        * object is ready.
+        */
+
+        setPlaybackButtonsEnabled(true);
+
+
+        setStatus(
+        "playback-status",
+        "YouTube player ready."
+        );
+
+
+        /*
+        * If the user selected a player while the API was loading,
+        * cue it now.
+        */
+
+        if (selectedPlayerId !== null) {
+
+        cueSelectedPlayer();
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * YOUTUBE STATE CHANGES
+        * ================================================================
+        */
+
+        function handleYouTubeStateChange(event) {
+
+        if (!window.YT) {
+        return;
+        }
+
+
+        switch (event.data) {
+
+        case YT.PlayerState.PLAYING:
+
+        setStatus(
+        "playback-status",
+        "Playing."
+        );
+
+        break;
+
+
+        case YT.PlayerState.PAUSED:
+
+        if (playbackStartTime) {
+
+        setStatus(
+        "playback-status",
+        "Paused."
+        );
+        }
+
+        break;
+
+
+        case YT.PlayerState.ENDED:
+
+        stopPlaybackTimer();
+
+        resetProgress();
+
+        setStatus(
+        "playback-status",
+        "Video ended."
+        );
+
+        break;
+
+
+        case YT.PlayerState.BUFFERING:
+
+        setStatus(
+        "playback-status",
+        "Buffering..."
+        );
+
+        break;
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * YOUTUBE ERRORS
+        * ================================================================
+        */
+
+        function handleYouTubeError(event) {
+
+        console.error(
+        "YouTube player error:",
+        event.data
+        );
+
+
+        let message =
+        "YouTube could not play this video.";
+
+
+        switch (event.data) {
+
+        case 2:
+
+        message =
+        "Invalid YouTube video ID.";
+
+        break;
+
+
+        case 5:
+
+        message =
+        "The video could not be played by the HTML5 YouTube player.";
+
+        break;
+
+
+        case 100:
+
+        message =
+        "This YouTube video no longer exists or is private.";
+
+        break;
+
+
+        case 101:
+
+        case 150:
+
+        message =
+        "This video does not allow embedded playback.";
+
+        break;
+
+
+        case 153:
+
+        message =
+        "YouTube rejected the embedded player because no valid HTTP referrer/origin was provided. Open this page from a web server instead of directly from file://.";
+
+        break;
+        }
+
+
+        setStatus(
+        "playback-status",
+        message
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * ENABLE/DISABLE BUTTONS
+        * ================================================================
+        */
+
+        function setPlaybackButtonsEnabled(enabled) {
+
+        document
+        .getElementById("play-button")
+        .disabled = !enabled;
+
+
+        document
+        .getElementById("fade-button")
+        .disabled = !enabled;
+
+
+        document
+        .getElementById("stop-button")
+        .disabled = !enabled;
+        }
+
+
+        /*
+        * ================================================================
+        * YOUTUBE SEARCH
+        * ================================================================
+        */
+
+        function searchYouTube() {
+
+        const query =
+        document
+        .getElementById("youtube-search")
+        .value
+        .trim();
+
+
+        if (!query) {
+
+        setStatus(
+        "form-status",
+        "Enter a song or video to search."
+        );
+
+        return;
+        }
+
+
+        const searchUrl =
+        "https://www.youtube.com/results?search_query=" +
+        encodeURIComponent(query);
+
+
+        window.open(
+        searchUrl,
+        "_blank",
+        "noopener,noreferrer"
+        );
+
+
+        setStatus(
+        "form-status",
+        "YouTube search opened. Copy the video's URL and paste it below."
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * YOUTUBE URL VALIDATION
+        * ================================================================
+        */
+
+        function isYouTubeUrl(url) {
+
+        try {
+
+        const parsed =
+        new URL(url);
+
+
+        const host =
+        parsed.hostname.toLowerCase();
+
+
+        return (
+        host === "youtube.com" ||
+        host === "www.youtube.com" ||
+        host === "m.youtube.com" ||
+        host === "youtu.be" ||
+        host === "www.youtu.be"
+        );
+
+        } catch {
+
+        return false;
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * GET VIDEO ID
+        * ================================================================
+        */
+
+        function getYouTubeVideoId(url) {
+
+        try {
+
+        const parsed =
+        new URL(url);
+
+
+        const host =
+        parsed.hostname.toLowerCase();
+
+
+        /*
+        * https://youtu.be/VIDEO_ID
+        */
+
+        if (
+        host === "youtu.be" ||
+        host === "www.youtu.be"
+        ) {
+
+        return (
+        parsed.pathname
+        .split("/")
+        .filter(Boolean)[0]
+        || null
+        );
+        }
+
+
+        /*
+        * https://www.youtube.com/watch?v=VIDEO_ID
+        */
+
+        if (
+        parsed.pathname ===
+        "/watch"
+        ) {
+
+        return parsed.searchParams.get(
+        "v"
+        );
+        }
+
+
+        /*
+        * https://www.youtube.com/shorts/VIDEO_ID
+        */
+
+        if (
+        parsed.pathname.startsWith(
+        "/shorts/"
+        )
+        ) {
+
+        return (
+        parsed.pathname
+        .split("/")
+        .filter(Boolean)[1]
+        || null
+        );
+        }
+
+
+        /*
+        * https://www.youtube.com/embed/VIDEO_ID
+        */
+
+        if (
+        parsed.pathname.startsWith(
+        "/embed/"
+        )
+        ) {
+
+        return (
+        parsed.pathname
+        .split("/")
+        .filter(Boolean)[1]
+        || null
+        );
+        }
+
+
+        return null;
+
+        } catch {
+
+        return null;
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * PARSE START TIME
+        * ================================================================
+        */
+
+        function parseStartTime(value) {
+
+        if (!value) {
+        return 0;
+        }
+
+
+        value =
+        String(value).trim();
+
+
+        /*
+        * Plain seconds.
+        *
+        * Example:
+        * 42
+        */
+
+        if (/^\d+$/.test(value)) {
+
+        return parseInt(
+        value,
+        10
+        );
+        }
+
+
+        /*
+        * HH:MM:SS
+        */
+
+        if (
+        /^\d+:\d{1,2}:\d{1,2}$/
+        .test(value)
+        ) {
+
+        const parts =
+        value.split(":");
+
+
+        return (
+        parseInt(parts[0], 10) * 3600 +
+        parseInt(parts[1], 10) * 60 +
+        parseInt(parts[2], 10)
+        );
+        }
+
+
+        /*
+        * MM:SS
+        */
+
+        if (
+        /^\d+:\d{1,2}$/
+        .test(value)
+        ) {
+
+        const parts =
+        value.split(":");
+
+
+        return (
+        parseInt(parts[0], 10) * 60 +
+        parseInt(parts[1], 10)
+        );
+        }
+
+
+        /*
+        * 1h2m3s
+        * 2m42s
+        * 42s
+        */
+
+        const match =
+        value.match(
+        /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i
+        );
+
+
+        if (match) {
+
+        return (
+        parseInt(
+        match[1] || 0,
+        10
+        ) * 3600 +
+
+        parseInt(
+        match[2] || 0,
+        10
+        ) * 60 +
+
+        parseInt(
+        match[3] || 0,
+        10
+        )
+        );
+        }
+
+
+        return 0;
+        }
+
+
+        /*
+        * ================================================================
+        * FORMAT TIME
+        * ================================================================
+        */
+
+        function formatTime(seconds) {
+
+        seconds =
+        Math.max(
+        0,
+        Math.floor(
+        Number(seconds) || 0
+        )
+        );
+
+
+        const hours =
+        Math.floor(
+        seconds / 3600
+        );
+
+
+        const minutes =
+        Math.floor(
+        (seconds % 3600) / 60
+        );
+
+
+        const remainingSeconds =
+        seconds % 60;
+
+
+        if (hours > 0) {
+
+        return (
+        String(hours).padStart(2, "0") +
+        ":" +
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remainingSeconds).padStart(2, "0")
+        );
+        }
+
+
+        return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remainingSeconds).padStart(2, "0")
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * SAVE PLAYER
+        * ================================================================
+        */
+
+        function savePlayer() {
+
+        const playerNumber =
+        document
+        .getElementById("player-number")
+        .value
+        .trim();
+
+
+        const playerName =
+        document
+        .getElementById("player-name")
+        .value
+        .trim();
+
+
+        const youtubeUrl =
+        document
+        .getElementById("youtube-url")
+        .value
+        .trim();
+
+
+        const startTimeValue =
+        document
+        .getElementById("start-time")
+        .value
+        .trim();
+
+
+        if (
+        !playerNumber ||
+        !playerName ||
+        !youtubeUrl
+        ) {
+
+        setStatus(
+        "form-status",
+        "Player number, player name, and YouTube URL are required."
+        );
+
+        return;
+        }
+
+
+        if (!isYouTubeUrl(youtubeUrl)) {
+
+        setStatus(
+        "form-status",
+        "Enter a valid YouTube URL."
+        );
+
+        return;
+        }
+
+
+        const videoId =
+        getYouTubeVideoId(
+        youtubeUrl
+        );
+
+
+        if (!videoId) {
+
+        setStatus(
+        "form-status",
+        "Could not read the YouTube video ID."
+        );
+
+        return;
+        }
+
+
+        const startTime =
+        parseStartTime(
+        startTimeValue
+        );
+
+
+        /*
+        * EDIT EXISTING PLAYER
+        */
+
+        if (editingPlayerId !== null) {
+
+        const player =
+        players.find(
+        p =>
+        p.id ===
+        editingPlayerId
+        );
+
+
+        if (player) {
+
+        player.playerNumber =
+        playerNumber;
+
+        player.playerName =
+        playerName;
+
+        player.youtubeUrl =
+        youtubeUrl;
+
+        player.startTime =
+        startTime;
+        }
+
+
+        editingPlayerId = null;
+
+        } else {
+
+        /*
+        * ADD NEW PLAYER
+        */
+
+        players.push({
+
+        id:
+        Date.now(),
+
+        playerNumber:
+        playerNumber,
+
+        playerName:
+        playerName,
+
+        youtubeUrl:
+        youtubeUrl,
+
+        startTime:
+        startTime
+        });
+        }
+
+
+        saveData();
+
+        renderPlayers();
+
+        clearForm();
+
+
+        setStatus(
+        "form-status",
+        "Player saved."
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * EDIT PLAYER
+        * ================================================================
+        */
+
+        function editPlayer(id) {
+
+        const player =
+        players.find(
+        p => p.id === id
+        );
+
+
+        if (!player) {
+        return;
+        }
+
+
+        document
+        .getElementById("player-number")
+        .value =
+        player.playerNumber;
+
+
+        document
+        .getElementById("player-name")
+        .value =
+        player.playerName;
+
+
+        document
+        .getElementById("youtube-url")
+        .value =
+        player.youtubeUrl;
+
+
+        document
+        .getElementById("start-time")
+        .value =
+        player.startTime;
+
+
+        editingPlayerId =
+        player.id;
+
+
+        document
+        .getElementById("form-title")
+        .textContent =
+        "Edit Player";
+
+
+        setStatus(
+        "form-status",
+        "Editing player " +
+        player.playerNumber +
+        "."
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * DELETE PLAYER
+        * ================================================================
+        */
+
+        function deletePlayer(id) {
+
+        players =
+        players.filter(
+        player =>
+        player.id !== id
+        );
+
+
+        if (
+        selectedPlayerId === id
+        ) {
+
+        selectedPlayerId = null;
+
+        stopPlayback();
+
+        document
+        .getElementById("now-playing")
+        .textContent =
+        "No player selected";
+        }
+
+
+        if (
+        editingPlayerId === id
+        ) {
+
+        editingPlayerId = null;
+        }
+
+
+        saveData();
+
+        renderPlayers();
+
+
+        setStatus(
+        "form-status",
+        "Player deleted."
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * SELECT PLAYER
+        * ================================================================
+        */
+
+        function selectPlayer(id) {
+
+        const player =
+        players.find(
+        p => p.id === id
+        );
+
+
+        if (!player) {
+        return;
+        }
+
+
+        selectedPlayerId =
+        player.id;
+
+
+        /*
+        * Highlight selected row.
+        */
+
+        document
+        .querySelectorAll(
+        ".player-row"
+        )
+        .forEach(row => {
+
+        row.classList.remove(
+        "selected"
+        );
+        });
+
+
+        const row =
+        document.querySelector(
+        '[data-player-id="' +
+        id +
+        '"]'
+        );
+
+
+        if (row) {
+
+        row.classList.add(
+        "selected"
+        );
+        }
+
+
+        document
+        .getElementById(
+        "now-playing"
+        )
+        .textContent =
+        player.playerNumber +
+        " - " +
+        player.playerName;
+
+
+        /*
+        * If YouTube isn't ready yet, don't fail.
+        *
+        * onYouTubeReady() will automatically cue this selected
+        * player when the API becomes ready.
+        */
+
+        if (
+        !youtubeReady ||
+        !youtubePlayer
+        ) {
+
+        setStatus(
+        "playback-status",
+        "Player selected. Waiting for YouTube to finish initializing..."
+        );
+
+        return;
+        }
+
+
+        cueSelected();
+        }
+
+
+        /*
+        * ================================================================
+        * CUE SELECTED PLAYER
+        * ================================================================
+        */
+
+        function cueSelected() {
+
+        if (
+        selectedPlayerId === null ||
+        !youtubeReady ||
+        !youtubePlayer
+        ) {
+        return;
+        }
+
+
+        const player =
+        players.find(
+        p =>
+        p.id ===
+        selectedPlayerId
+        );
+
+
+        if (!player) {
+        return;
+        }
+
+
+        const videoId =
+        getYouTubeVideoId(
+        player.youtubeUrl
+        );
+
+
+        if (!videoId) {
+
+        setStatus(
+        "playback-status",
+        "Invalid YouTube URL."
+        );
+
+        return;
+        }
+
+
+        /*
+        * Cue the video.
+        *
+        * cueVideoById DOES NOT start playback.
+        *
+        * This allows the user to press PLAY explicitly.
+        */
+
+        try {
+
+        youtubePlayer.cueVideoById({
+
+        videoId:
+        videoId,
+
+        startSeconds:
+        Number(
+        player.startTime || 0
+        )
+        });
+
+
+        /*
+        * Restore full volume whenever a different video is
+        * selected.
+        */
+
+        youtubePlayer.unMute();
+
+        youtubePlayer.setVolume(100);
+
+
+        resetProgress();
+
+
+        setStatus(
+        "playback-status",
+        "Selected: " +
+        player.playerNumber +
+        " - " +
+        player.playerName
+        );
+
+        } catch (error) {
+
+        console.error(
+        "Could not cue YouTube video:",
+        error
+        );
+
+        setStatus(
+        "playback-status",
+        "Could not load the selected YouTube video."
+        );
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * PLAY SELECTED
+        *
+        * This function is invoked directly by the user's PLAY button.
+        *
+        * The audible playback operations are deliberately performed
+        * here, inside the user interaction:
+        *
+        *     unMute()
+        *     setVolume(100)
+        *     playVideo()
+        *
+        * ================================================================
+        */
+        function movePlayerUp(id) {
+
+                const index =
+                players.findIndex(
+                function (player) {
+                return player.id === id;
+                }
+                );
+
+
+                if (
+                index <= 0
+                ) {
+                return;
+                }
+
+
+                const temp =
+                players[index - 1];
+
+
+                players[index - 1] =
+                players[index];
+
+                players[index] =
+                temp;
+
+
+                saveData();
+
+                renderPlayers();
+        }
+
+
+        function movePlayerDown(id) {
+
+                const index =
+                players.findIndex(
+                function (player) {
+                return player.id === id;
+                }
+                );
+
+
+                if (
+                index === -1 ||
+                index >= players.length - 1
+                ) {
+                return;
+                }
+
+
+                const temp =
+                players[index + 1];
+
+
+                players[index + 1] =
+                players[index];
+
+                players[index] =
+                temp;
+
+
+                saveData();
+
+                renderPlayers();
+        }
+        function playSelected() {
+
+        if (
+        selectedPlayerId === null
+        ) {
+
+        setStatus(
+        "playback-status",
+        "Select a player first."
+        );
+
+        return;
+        }
+
+
+        /*
+        * Do not attempt playback until the actual YT.Player object
+        * has completed its onReady callback.
+        */
+
+        if (
+        !youtubeReady ||
+        !youtubePlayer
+        ) {
+
+        setStatus(
+        "playback-status",
+        "YouTube player is still initializing. Please try PLAY again in a moment."
+        );
+
+        return;
+        }
+
+
+        const player =
+        players.find(
+        p =>
+        p.id ===
+        selectedPlayerId
+        );
+
+
+        if (!player) {
+        return;
+        }
+
+
+        const videoId =
+        getYouTubeVideoId(
+        player.youtubeUrl
+        );
+
+
+        if (!videoId) {
+
+        setStatus(
+        "playback-status",
+        "Invalid YouTube URL."
+        );
+
+        return;
+        }
+
+
+        /*
+        * Stop any previous timer/fade.
+        */
+
+        stopPlaybackTimer();
+
+
+        try {
+
+        /*
+        * Load the exact selected video and start position.
+        */
+
+        youtubePlayer.loadVideoById({
+
+        videoId:
+        videoId,
+
+        startSeconds:
+        Number(
+        player.startTime || 0
+        )
+        });
+
+
+        /*
+        * IMPORTANT:
+        *
+        * These are intentionally executed from the PLAY click
+        * handler.
+        */
+
+        youtubePlayer.unMute();
+
+        youtubePlayer.setVolume(100);
+
+        youtubePlayer.playVideo();
+
+
+        /*
+        * Start our own 15-second timer.
+        */
+
+        playbackStartTime =
+        Date.now();
+
+
+        resetProgress();
+
+
+        setStatus(
+        "playback-status",
+        "Playing " +
+        player.playerNumber +
+        " - " +
+        player.playerName
+        );
+
+
+        playbackTimer =
+        setInterval(
+        updatePlayback,
+        50
+        );
+
+        } catch (error) {
+
+        console.error(
+        "YouTube playback error:",
+        error
+        );
+
+        setStatus(
+        "playback-status",
+        "Could not start YouTube playback."
+        );
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * UPDATE 15-SECOND PLAYBACK
+        * ================================================================
+        */
+
+        function updatePlayback() {
+
+        if (!playbackStartTime) {
+        return;
+        }
+
+
+        const elapsed =
+        (
+        Date.now() -
+        playbackStartTime
+        ) / 1000;
+
+
+        const percent =
+        Math.min(
+        (
+        elapsed /
+        playbackDuration
+        ) * 100,
+        100
+        );
+
+
+        document
+        .getElementById(
+        "progress-fill"
+        )
+        .style.width =
+        percent + "%";
+
+
+        document
+        .getElementById(
+        "elapsed"
+        )
+        .textContent =
+        formatTime(
+        Math.min(
+        elapsed,
+        playbackDuration
+        )
+        );
+
+
+        if (
+        elapsed >= 13 &&
+        elapsed < 15 &&
+        !fadeTimer
+        ) {
+
+        startFade(2);
+        }
+
+
+        if (
+        elapsed >=
+        playbackDuration
+        ) {
+
+        stopPlaybackTimer();
+
+        resetProgress();
+
+        setStatus(
+        "playback-status",
+        "15-second playback complete."
+        );
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * FADE TO STOP
+        * ================================================================
+        */
+
+        function fadeToStop() {
+
+        if (
+        !youtubeReady ||
+        !youtubePlayer
+        ) {
+
+        return;
+        }
+
+
+        startFade(1);
+        }
+
+
+        /*
+        * ================================================================
+        * START FADE
+        * ================================================================
+        */
+
+        function startFade(duration) {
+
+        if (
+        !youtubePlayer ||
+        !youtubeReady
+        ) {
+        return;
+        }
+
+
+        if (fadeTimer) {
+        return;
+        }
+
+
+        let startVolume = 100;
+
+
+        try {
+
+        startVolume =
+        youtubePlayer.getVolume();
+
+        } catch {
+
+        startVolume = 100;
+        }
+
+
+        const fadeStart =
+        Date.now();
+
+
+        fadeTimer =
+        setInterval(
+        function () {
+
+        const elapsed =
+        (
+        Date.now() -
+        fadeStart
+        ) / 1000;
+
+
+        const progress =
+        Math.min(
+        elapsed /
+        duration,
+        1
+        );
+
+
+        const volume =
+        Math.max(
+        0,
+        startVolume *
+        (1 - progress)
+        );
+
+
+        try {
+
+        youtubePlayer.setVolume(
+        volume
+        );
+
+        } catch {
+
+        clearInterval(
+        fadeTimer
+        );
+
+        fadeTimer = null;
+
+        return;
+        }
+
+
+        if (
+        progress >= 1
+        ) {
+
+        clearInterval(
+        fadeTimer
+        );
+
+        fadeTimer = null;
+
+
+        try {
+
+        youtubePlayer.pauseVideo();
+
+        /*
+        * Restore volume for the next PLAY.
+        */
+
+        youtubePlayer.setVolume(
+        100
+        );
+
+        youtubePlayer.unMute();
+
+        } catch {
+        }
+
+
+        stopPlaybackTimer();
+
+        setStatus(
+        "playback-status",
+        "Playback faded out."
+        );
+        }
+
+        },
+        20
+        );
+        }
+
+        function exportPlayers() {
+
+        if (players.length === 0) {
+
+        alert(
+        "There are no players to export."
+        );
+
+        return;
+        }
+
+
+        const confirmed =
+        confirm(
+        "Export all saved players?"
+        );
+
+
+        if (!confirmed) {
+        return;
+        }
+
+
+        const data =
+        JSON.stringify(
+        players,
+        null,
+        4
+        );
+
+
+        const blob =
+        new Blob(
+        [data],
+        {
+        type:
+        "application/json"
+        }
+        );
+
+
+        const url =
+        URL.createObjectURL(
+        blob
+        );
+
+
+        const link =
+        document.createElement(
+        "a"
+        );
+
+
+        link.href =
+        url;
+
+        link.download =
+        "bleacher-speaker-roster.json";
+
+
+        document.body.appendChild(
+        link
+        );
+
+
+        link.click();
+
+
+        document.body.removeChild(
+        link
+        );
+
+
+        URL.revokeObjectURL(
+        url
+        );
+}
+
+
+function importPlayers() {
+
+        const confirmed =
+        confirm(
+        "Import players from a file?\n\nThis will replace your current saved players."
+        );
+
+
+        if (!confirmed) {
+        return;
+        }
+
+
+        document.getElementById(
+        "import-file"
+        ).click();
+}
+
+
+function handleImportFile(event) {
+
+        const file =
+        event.target.files[0];
+
+
+        if (!file) {
+        return;
+        }
+
+
+        const reader =
+        new FileReader();
+
+
+        reader.onload =
+        function () {
+
+        try {
+
+        const importedPlayers =
+        JSON.parse(
+        reader.result
+        );
+
+
+        if (
+        !Array.isArray(
+        importedPlayers
+        )
+        ) {
+
+        alert(
+        "Invalid player file."
+        );
+
+        return;
+        }
+
+
+        const validPlayers =
+        importedPlayers.every(
+        function (player) {
+
+        return (
+        player &&
+        player.id !== undefined &&
+        player.playerNumber !== undefined &&
+        player.playerName !== undefined &&
+        typeof player.youtubeUrl === "string" &&
+        player.startTime !== undefined
+        );
+
+        }
+        );
+
+
+        if (!validPlayers) {
+
+        alert(
+        "Invalid player data."
+        );
+
+        return;
+        }
+
+
+        players =
+        importedPlayers;
+
+
+        saveData();
+
+
+        selectedPlayerId =
+        null;
+
+
+        renderPlayers();
+
+
+        alert(
+        "Players imported successfully."
+        );
+
+
+        }
+        catch (
+        error
+        ) {
+
+        alert(
+        "Could not import the player file."
+        );
+
+        }
+        };
+
+
+        reader.readAsText(
+        file
+        );
+
+
+        event.target.value =
+        "";
+}
+        /*
+        * ================================================================
+        * STOP PLAYBACK TIMER
+        * ================================================================
+        */
+
+        function stopPlaybackTimer() {
+
+        if (playbackTimer) {
+
+        clearInterval(
+        playbackTimer
+        );
+
+        playbackTimer = null;
+        }
+
+
+        if (fadeTimer) {
+
+        clearInterval(
+        fadeTimer
+        );
+
+        fadeTimer = null;
+        }
+
+
+        playbackStartTime = 0;
+        }
+
+
+        /*
+        * ================================================================
+        * STOP
+        * ================================================================
+        */
+
+        function stopPlayback() {
+
+        stopPlaybackTimer();
+
+
+        if (
+        youtubePlayer &&
+        youtubeReady
+        ) {
+
+        try {
+
+        youtubePlayer.pauseVideo();
+
+        youtubePlayer.setVolume(100);
+
+        youtubePlayer.unMute();
+
+        } catch (error) {
+
+        console.warn(
+        "YouTube stop:",
+        error
+        );
+        }
+        }
+
+
+        resetProgress();
+
+
+        setStatus(
+        "playback-status",
+        "Playback stopped."
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * RESET PROGRESS
+        * ================================================================
+        */
+
+        function resetProgress() {
+
+        const fill =
+        document.getElementById(
+        "progress-fill"
+        );
+
+
+        const elapsed =
+        document.getElementById(
+        "elapsed"
+        );
+
+
+        const duration =
+        document.getElementById(
+        "duration"
+        );
+
+
+        if (fill) {
+        fill.style.width = "0%";
+        }
+
+
+        if (elapsed) {
+        elapsed.textContent = "00:00";
+        }
+
+
+        if (duration) {
+
+        duration.textContent =
+        formatTime(
+        playbackDuration
+        );
+        }
+        }
+
+
+        /*
+        * ================================================================
+        * RENDER PLAYER LIST
+        * ================================================================
+        */
+
+        function renderPlayers() {
+
+        const tbody =
+        document.getElementById(
+        "player-list"
+        );
+
+
+        if (!tbody) {
+        return;
+        }
+
+
+        tbody.innerHTML = "";
+
+
+        if (players.length === 0) {
+
+        tbody.innerHTML = `
+        <tr>
+        <td
+        colspan="5"
+        class="empty"
+        >
+        No players saved.
+        </td>
+        </tr>
+        `;
+
+        return;
+        }
+
+
+        players.forEach(
+        function (player) {
+
+        const row =
+        document.createElement(
+        "tr"
+        );
+
+
+        row.className =
+        "player-row";
+
+
+        row.draggable =
+        true;
+
+
+        row.dataset.playerId =
+        String(player.id);
+
+
+        if (
+        player.id ===
+        selectedPlayerId
+        ) {
+
+        row.classList.add(
+        "selected"
+        );
+        }
+
+
+        row.addEventListener(
+        "dragstart",
+        function () {
+
+        row.classList.add(
+        "dragging"
+        );
+        }
+        );
+
+
+        row.addEventListener(
+        "dragend",
+        function () {
+
+        row.classList.remove(
+        "dragging"
+        );
+
+        document
+        .querySelectorAll(
+        "#player-list tr"
+        )
+        .forEach(
+        function (item) {
+
+        item.classList.remove(
+        "drag-over"
+        );
+
+        }
+        );
+
+        }
+        );
+
+
+        row.addEventListener(
+        "dragover",
+        function (event) {
+
+        event.preventDefault();
+
+        const dragging =
+        document.querySelector(
+        "#player-list tr.dragging"
+        );
+
+
+        if (
+        dragging &&
+        dragging !== row
+        ) {
+
+        row.classList.add(
+        "drag-over"
+        );
+
+        }
+
+        }
+        );
+
+
+        row.addEventListener(
+        "dragleave",
+        function () {
+
+        row.classList.remove(
+        "drag-over"
+        );
+
+        }
+        );
+
+
+        row.addEventListener(
+        "drop",
+        function (event) {
+
+        event.preventDefault();
+
+        row.classList.remove(
+        "drag-over"
+        );
+
+
+        const dragging =
+        document.querySelector(
+        "#player-list tr.dragging"
+        );
+
+
+        if (
+        !dragging ||
+        dragging === row
+        ) {
+
+        return;
+        }
+
+
+        const draggedId =
+        Number(
+        dragging.dataset.playerId
+        );
+
+
+        const targetId =
+        Number(
+        row.dataset.playerId
+        );
+
+
+        const draggedIndex =
+        players.findIndex(
+        function (item) {
+
+        return item.id === draggedId;
+
+        }
+        );
+
+
+        const targetIndex =
+        players.findIndex(
+        function (item) {
+
+        return item.id === targetId;
+
+        }
+        );
+
+
+        if (
+        draggedIndex === -1 ||
+        targetIndex === -1
+        ) {
+
+        return;
+        }
+
+
+        const draggedPlayer =
+        players.splice(
+        draggedIndex,
+        1
+        )[0];
+
+
+        players.splice(
+        targetIndex,
+        0,
+        draggedPlayer
+        );
+
+
+        renderPlayers();
+
+        }
+        );
+        const upCell =
+        document.createElement(
+        "td"
+        );
+
+        upCell.className =
+        "order-left";
+
+
+        const upButton =
+        document.createElement(
+        "button"
+        );
+
+        upButton.className =
+        "order-button";
+
+        upButton.textContent =
+        "▲";
+
+        upButton.type =
+        "button";
+
+        upButton.title =
+        "Move player up";
+
+        upButton.addEventListener(
+        "click",
+        function (event) {
+
+        event.stopPropagation();
+
+        movePlayerUp(
+        player.id
+        );
+
+        }
+        );
+
+
+        upCell.appendChild(
+        upButton
+        );
+
+        row.appendChild(
+        upCell
+        );
+        const downCell =
+        document.createElement(
+        "td"
+        );
+
+        downCell.className =
+        "order-right";
+
+
+        const downButton =
+        document.createElement(
+        "button"
+        );
+
+        downButton.className =
+        "order-button";
+
+        downButton.textContent =
+        "▼";
+
+        downButton.type =
+        "button";
+
+        downButton.title =
+        "Move player down";
+
+        downButton.addEventListener(
+        "click",
+        function (event) {
+
+        event.stopPropagation();
+
+        movePlayerDown(
+        player.id
+        );
+
+        }
+        );
+
+
+        downCell.appendChild(
+        downButton
+        );
+
+        row.appendChild(
+        downCell
+        );
+
+        const numberCell =
+        document.createElement(
+        "td"
+        );
+
+        numberCell.textContent =
+        player.playerNumber;
+
+
+        const nameCell =
+        document.createElement(
+        "td"
+        );
+
+        nameCell.textContent =
+        player.playerName;
+
+
+        const urlCell =
+        document.createElement(
+        "td"
+        );
+
+        urlCell.className =
+        "video-url";
+
+        urlCell.textContent =
+        "Loading title...";
+
+
+        const startCell =
+        document.createElement(
+        "td"
+        );
+
+        startCell.textContent =
+        formatTime(
+        player.startTime || 0
+        );
+
+
+        const actionsCell =
+        document.createElement(
+        "td"
+        );
+
+
+        const actions =
+        document.createElement(
+        "div"
+        );
+
+        actions.className =
+        "actions";
+
+
+        const selectButton =
+        document.createElement(
+        "button"
+        );
+
+        selectButton.className =
+        "green";
+
+        selectButton.textContent =
+        "SELECT";
+
+        selectButton.type =
+        "button";
+
+        selectButton.addEventListener(
+        "click",
+        function (event) {
+
+        event.stopPropagation();
+
+        selectPlayer(
+        player.id
+        );
+
+        }
+        );
+
+
+        const editButton =
+        document.createElement(
+        "button"
+        );
+
+        editButton.className =
+        "gray";
+
+        editButton.textContent =
+        "EDIT";
+
+        editButton.type =
+        "button";
+
+        editButton.addEventListener(
+        "click",
+        function (event) {
+
+        event.stopPropagation();
+
+        editPlayer(
+        player.id
+        );
+
+        }
+        );
+
+
+        const deleteButton =
+        document.createElement(
+        "button"
+        );
+
+        deleteButton.className =
+        "red";
+
+        deleteButton.textContent =
+        "DELETE";
+
+        deleteButton.type =
+        "button";
+
+        deleteButton.addEventListener(
+        "click",
+        function (event) {
+
+        event.stopPropagation();
+
+        deletePlayer(
+        player.id
+        );
+
+        }
+        );
+
+
+        actions.appendChild(
+        selectButton
+        );
+
+        actions.appendChild(
+        editButton
+        );
+
+        actions.appendChild(
+        deleteButton
+        );
+
+
+        actionsCell.appendChild(
+        actions
+        );
+
+
+        row.appendChild(
+        numberCell
+        );
+
+        row.appendChild(
+        nameCell
+        );
+
+        row.appendChild(
+        urlCell
+        );
+
+        row.appendChild(
+        startCell
+        );
+
+        row.appendChild(
+        actionsCell
+        );
+
+
+        tbody.appendChild(
+        row
+        );
+
+
+        const videoId =
+        getYouTubeVideoId(
+        player.youtubeUrl
+        );
+
+
+        if (!videoId) {
+
+        urlCell.textContent =
+        "YouTube Video";
+
+        return;
+        }
+
+
+        fetch(
+        "https://www.youtube.com/oembed?url=" +
+        encodeURIComponent(
+        player.youtubeUrl
+        ) +
+        "&format=json"
+        )
+        .then(
+        function (response) {
+
+        return response.json();
+
+        }
+        )
+        .then(
+        function (data) {
+
+        const title =
+        data.title ||
+        "YouTube Video";
+
+
+        urlCell.textContent =
+        title.substring(
+        0,
+        20
+        );
+
+        }
+        )
+        .catch(
+        function () {
+
+        urlCell.textContent =
+        "YouTube Video";
+
+        }
+        );
+
+        }
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * CLEAR FORM
+        * ================================================================
+        */
+
+        function clearForm() {
+
+        document
+        .getElementById(
+        "player-number"
+        )
+        .value = "";
+
+
+        document
+        .getElementById(
+        "player-name"
+        )
+        .value = "";
+
+
+        document
+        .getElementById(
+        "youtube-url"
+        )
+        .value = "";
+
+
+        document
+        .getElementById(
+        "start-time"
+        )
+        .value = "";
+
+
+        editingPlayerId = null;
+
+
+        document
+        .getElementById(
+        "form-title"
+        )
+        .textContent =
+        "Add Player";
+        }
+
+
+        /*
+        * ================================================================
+        * SAVE DATA
+        * ================================================================
+        */
+
+        function saveData() {
+
+        localStorage.setItem(
+        "players",
+        JSON.stringify(players)
+        );
+        }
+
+
+        /*
+        * ================================================================
+        * STATUS
+        * ================================================================
+        */
+
+        function setStatus(
+        id,
+        message
+        ) {
+
+        const element =
+        document.getElementById(id);
+
+
+        if (element) {
+
+        element.textContent =
+        message;
+        }
+        }
+    </script>
+
+</body>
+</html>
